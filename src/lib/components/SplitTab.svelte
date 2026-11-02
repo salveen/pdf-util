@@ -21,33 +21,36 @@
 	let resultFiles = $state<{ name: string; data: Uint8Array }[]>([]);
 	let dragover = $state(false);
 
+	// A locked or unreadable file shows why instead of a "0 pages" file.
+	async function useFile(f: File) {
+		result = null;
+		resultFiles = [];
+		try {
+			pageCount = await getPageCount(f);
+		} catch (e: unknown) {
+			file = null;
+			pageCount = 0;
+			result = { success: false, message: e instanceof Error ? e.message : String(e) };
+			return;
+		}
+		file = f;
+		startPage = 1;
+		endPage = pageCount;
+		everyN = 1;
+	}
+
 	async function handleFile(event: Event) {
 		const input = event.target as HTMLInputElement;
-		if (input.files?.[0]) {
-			file = input.files[0];
-			pageCount = await getPageCount(file);
-			startPage = 1;
-			endPage = pageCount;
-			everyN = 1;
-			result = null;
-			resultFiles = [];
-			input.value = '';
-		}
+		const f = input.files?.[0];
+		input.value = '';
+		if (f) await useFile(f);
 	}
 
 	async function handleDrop(event: DragEvent) {
 		event.preventDefault();
 		dragover = false;
 		const f = event.dataTransfer?.files?.[0];
-		if (f && f.name.toLowerCase().endsWith('.pdf')) {
-			file = f;
-			pageCount = await getPageCount(file);
-			startPage = 1;
-			endPage = pageCount;
-			everyN = 1;
-			result = null;
-			resultFiles = [];
-		}
+		if (f && f.name.toLowerCase().endsWith('.pdf')) await useFile(f);
 	}
 
 	async function doSplit() {
@@ -177,7 +180,8 @@
 				bind:value={pagesInput}
 			/>
 			<div class="form-hint">
-				Enter page numbers separated by commas. Use hyphens for ranges (e.g., 1-3).
+				Enter page numbers separated by commas. Use hyphens for ranges (e.g., 1-3), or 5- for
+				page 5 to the end.
 			</div>
 		</div>
 	{:else}

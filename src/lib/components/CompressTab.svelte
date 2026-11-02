@@ -1,21 +1,33 @@
 <script lang="ts">
-	import { compressPdf, downloadBlob, formatSize } from '$lib/pdf';
+	import { compressPdf, type Level } from '$lib/compress';
+	import { downloadBlob, formatSize } from '$lib/pdf';
 
 	let file = $state<File | null>(null);
-	let level = $state('MEDIUM');
+	let level = $state<Level>('MEDIUM');
 	let outputName = $state('compressed.pdf');
 	let processing = $state(false);
 	let result = $state<{ success: boolean; message: string } | null>(null);
 	let resultData = $state<Uint8Array | null>(null);
-	let metrics = $state<{ original: number; compressed: number; reduction: number } | null>(null);
+	// sizes in bytes, and the level that produced them
+	let metrics = $state<{ original: number; compressed: number; level: Level } | null>(null);
 	let dragover = $state(false);
 
-	const descriptions: Record<string, string> = {
-		LOW: 'Lossless — metadata stripped, structure optimized, images untouched',
-		MEDIUM: 'Balanced — images recompressed at 75% JPEG quality',
-		HIGH: 'Aggressive — images downscaled and recompressed, some quality loss',
-		EXTREME: 'Maximum — heavy image downscaling, visible quality loss'
+	const smaller = $derived(metrics !== null && metrics.compressed < metrics.original);
+	const reduction = $derived(
+		metrics ? ((metrics.original - metrics.compressed) / metrics.original) * 100 : 0
+	);
+
+	const descriptions: Record<Level, string> = {
+		LOW: 'Lossless: removes hidden data, leftovers and duplicates; images untouched',
+		MEDIUM: 'Balanced: images recompressed at 75% JPEG quality, capped at 2000 px',
+		HIGH: 'Aggressive: images capped at 1500 px and recompressed, some quality loss',
+		EXTREME: 'Maximum: images capped at 1000 px, visible quality loss'
 	};
+
+	function percent(value: number) {
+		if (value <= 0) return 'none';
+		return value < 0.1 ? 'under 0.1%' : `${value.toFixed(1)}%`;
+	}
 
 	async function handleFile(event: Event) {
 		const input = event.target as HTMLInputElement;
@@ -51,11 +63,8 @@
 		try {
 			const data = await compressPdf(file, level);
 			resultData = data;
-			const originalKb = file.size / 1024;
-			const compressedKb = data.length / 1024;
-			const reduction = ((originalKb - compressedKb) / originalKb) * 100;
-			metrics = { original: originalKb, compressed: compressedKb, reduction };
-			result = { success: true, message: '✓ Compression complete!' };
+			metrics = { original: file.size, compressed: data.length, level };
+			result = { success: true, message: '' };
 		} catch (e: unknown) {
 			result = {
 				success: false,
@@ -76,7 +85,8 @@
 
 <h3 class="section-header">Compress a PDF</h3>
 <p class="section-desc">
-	Reduce PDF file size by stripping metadata and optimizing structure.
+	Shrink a PDF. Every level removes hidden metadata, leftovers from earlier edits and duplicate
+	objects; higher levels also recompress images.
 </p>
 
 {#if !file}
@@ -136,25 +146,36 @@
 
 {#if result}
 	<div style="margin-top: 1rem;">
-		{#if result.success}
-			<div class="alert-success">{result.message}</div>
-			{#if metrics}
-				<div class="metrics-row">
-					<div class="metric-card">
-						<div class="metric-label">Original Size</div>
-						<div class="metric-value">{metrics.original.toFixed(1)} KB</div>
-					</div>
-					<div class="metric-card">
-						<div class="metric-label">Compressed Size</div>
-						<div class="metric-value">{metrics.compressed.toFixed(1)} KB</div>
-					</div>
-					<div class="metric-card">
-						<div class="metric-label">Reduction</div>
-						<div class="metric-value">{metrics.reduction.toFixed(1)}%</div>
-					</div>
+		{#if result.success && metrics}
+			{#if smaller}
+				<div class="alert-success">✓ Compressed, with hidden data removed</div>
+			{:else}
+				<!-- The download is still the cleaned copy: handing back the original would hand
+				     back its hidden data too. -->
+				<div class="alert-info">
+					No smaller at this level: {metrics.level === 'LOW'
+						? 'Low leaves images untouched, so try Medium.'
+						: 'its images are already compact, or of a kind left as they are so their colours stay exact.'}
+					The download is a cleaned copy, with hidden data removed.
 				</div>
 			{/if}
-			<button class="btn-download" onclick={download}>Download Compressed PDF</button>
+			<div class="metrics-row">
+				<div class="metric-card">
+					<div class="metric-label">Original Size</div>
+					<div class="metric-value">{formatSize(metrics.original)}</div>
+				</div>
+				<div class="metric-card">
+					<div class="metric-label">Compressed Size</div>
+					<div class="metric-value">{formatSize(metrics.compressed)}</div>
+				</div>
+				<div class="metric-card">
+					<div class="metric-label">Reduction</div>
+					<div class="metric-value">{percent(reduction)}</div>
+				</div>
+			</div>
+			<button class="btn-download" onclick={download}>
+				{smaller ? 'Download Compressed PDF' : 'Download Cleaned PDF'}
+			</button>
 		{:else}
 			<div class="alert-error">{result.message}</div>
 		{/if}

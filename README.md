@@ -6,7 +6,7 @@ I built this because I wasn't comfortable uploading sensitive documents — pass
 
 Everything runs in your browser. Nothing is sent to a server. Works in airplane mode.
 
-🌐 **Live at [pdfutil.salveendutt.com](https://pdf.salveendutt.com)**
+🌐 **Live at [pdf.salveendutt.com](https://pdf.salveendutt.com)**
 
 ![pdf util](assets/frontpage.png)
 
@@ -17,8 +17,8 @@ Everything runs in your browser. Nothing is sent to a server. Works in airplane 
 ## Run locally
 
 ```bash
-git clone https://github.com/salveen/salveen-loves-pdf.git
-cd salveen-loves-pdf
+git clone https://github.com/salveen/pdf-util.git
+cd pdf-util
 npm install
 npm run dev
 ```
@@ -31,3 +31,11 @@ Then open `http://localhost:5173` in your browser.
 npm run build
 npm run preview
 ```
+
+## Test
+
+```bash
+npm test
+```
+
+Runs the unit tests with Node's built-in test runner (Node 22.18 or newer, which reads TypeScript directly); no extra packages needed.

@@ -430,6 +430,19 @@ body {
 	margin-bottom: 1rem;
 }
 
+.alert-info {
+	background: linear-gradient(
+		135deg,
+		rgba(245, 158, 11, 0.15) 0%,
+		rgba(217, 119, 6, 0.1) 100%
+	);
+	border: 1px solid rgba(245, 158, 11, 0.3);
+	border-radius: 12px;
+	color: #fcd34d;
+	padding: 1rem;
+	margin-bottom: 1rem;
+}
+
 /* Section */
 .section-header {
 	color: var(--stone-100);
